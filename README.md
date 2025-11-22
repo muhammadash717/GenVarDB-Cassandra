@@ -1,48 +1,16 @@
 # GenVarDB-Cassandra
 A scalable Apache Cassandra database with a structured schema and integrated frontend for exploring genomic variant datasets.
-  
-Author : *Muhammad Ashraf*
 
-**Table of Contents:**
-
-[**1\. Introduction**](#introduction)
-
-[**2\. Schema Design**](#schema-design)
-
-[**3\. Software & Tools**](#software-&-tools)
-
-[**4\. Database Installation & Configs**](#database-installation-&-configs)
-
-[**5\. Data Importing**](#data-importing)
-
-[**6\. Modeling and Query Optimization**](#modeling-and-query-optimization)
-
-[**7\. Web App Development**](#web-app-development)
-
-[**8\. Data Access**](#data-access)
-
-[**9\. Backup & Recovery**](#backup-&-recovery)
-
-[**10\. Security**](#security)
-
-[**11\. Troubleshooting**](#troubleshooting)
-
-[**12\. Best Practices**](#best-practices)
-
-[**13\. Conclusion**](#conclusion)
-
-# 
-
-# **1. Introduction** {#introduction}
+# **1. Introduction**
 
 Storing genetic variants, such as single nucleotide variants (SNVs), insertions, and deletions, within a structured and reliable database is a critical step in advancing genetic research. Genetic variants play a pivotal role in understanding the genetic basis of diseases, uncovering population-specific traits, and driving the development of personalized medicine. As large-scale sequencing projects generate massive amounts of data, managing and analyzing this information becomes increasingly complex. A dedicated and efficient database is essential for organizing and leveraging this genetic data to ensure it is accessible for further analysis and interpretation. The GenVarDB is designed to address these needs by storing and managing genetic variants identified through such projects. This database not only catalogs the specific variants but also stores the genotypes associated with each variant in samples (vcf files). By offering a well-structured system, it enables seamless data management, while facilitating analyses and clinical interpretations.  
 This guide is intended to walk you through the complete process of setting up, maintaining, and optimizing a database tailored to handle genetic variant data. From initial configuration and indexing strategies to query optimization and troubleshooting, this document will provide researchers, data scientists, and clinicians with the tools to efficiently store, retrieve, and analyze genetic variant information. Whether you’re focusing on population genetics, disease associations, or personalized medicine, this database will serve as the foundation for managing vast genetic datasets with precision and scalability. In the rapidly evolving field of genomics, the ability to store and query large datasets efficiently can significantly enhance research outcomes and clinical applications. By using this guide, you will be equipped to manage genetics variants data with the rigor and reliability required for high-quality genomic research and healthcare integration.
 
-# **2. Schema Design** {#schema-design}
+# **2. Schema Design**
 
 The database comprises one main table; annotations, that stores all information about genetic variants. The genetic variants are defined by their genomic location (chromosome and position), reference and alternative alleles. The chromosome is the main partition column based on which the data is partitioned (divided) in separate groups to facilitate table query and data retrieval. Since the chromosome must be specified in every query, all other chromosomes are discarded while searching, enormously accelerating the query process. Within each partition, the data are clustered (sorted) in ascending order based on the value in the position column, followed by the reference allele, and then the alternate. The presence of variants in individual samples are represented in 4 columns showing the variant count in all samples, number of homozygous/heterozygous occurrences of the variant, and the samples containing the variant as well as the corresponding genotype. Gene-based data (from RefSeq) are shown in 5 columns for the variant unique identifier, gene name, variant effect (downstream, exonic, intergenic, intronic, ncRNA, splicing, upstream, UTR3, UTR5), consequence for exonic variants (frameshift\_deletion, frameshift\_insertion, nonframeshift\_deletion, nonframeshift\_insertion, nonsynonymous\_SNV, startloss, stopgain, stoploss, synonymous\_SNV), and amino acids change. Clinical annotations are shown in 4 columns for the diseases involving the variant (germline, oncogenic, somatic), variant hits in clinical databases (such as OMIM, MedGen, Orphanet, …), variant significance on ClinVar, and InterVar prediction based on the ACMG guidelines (Benign, Likely\_benign, Likely\_pathogenic, Pathogenic, Uncertain\_significance). Variant frequencies from various databases are also available in multiple columns. Population frequency databases are gnomAD genome (7 columns), gnomAD exome (7 columns), 1000 genomes (6 columns), and the Great Middle East (1 column). In addition, a number of computational tools for variant interpretation, pathogenicity prediction, and conservation are also included in multiple columns. Some of these tools are SIFT, PolyPhen, GERP, and CADD.  
 
-# **3. Software & Tools** {#software-&-tools}
+# **3. Software & Tools**
 
 To set up the database, you will need the following software and tools:
 
@@ -83,7 +51,7 @@ $ for database in refGeneWithVer,avsnp151,clinvar_20240917,intervar_20180118,gno
 All databases are downloaded (along with their indexes) using the `annotate_variation.pl` script provided by ANNOVAR. But to speed up the processes downstream, the databases need to be reindexed using another script, `index_annovar.pl`, downloaded from an external github repository ([link](https://gist.github.com/fo40225/f135b50b3e47d0997098264c3d28e590)). The best indexing parameter for all databases is 1000 except for gnomad_genome (500), gnomad_exome (100), and intervar (100). Note that for InterVar, it's better to select the first 6 columns only since they are the only ones required.
 
 
-# **4. Database Installation & Configs** {#database-installation-&-configs}
+# **4. Database Installation & Configs**
 
 To provide a flexible and scalable environment for enhanced data storage and retrieval while maintaining system resources usage, some modifications must be made in the two configuration files; `cassandra.yaml` which is the main configuration file for Cassandra and `cassandra-env.sh` where the JAVA environment variables can be set. The configuration files can be found in the conf directory within the tarball install location. All you need to do is to replace the original conf directory with the modified one in this repository.  
 You can launch the database server by executing the bin file `cassandra` that can be found in the bin directory within the tarball install location. This command operates in the background so you won’t get back the bash terminal prompt unless you press enter. You can know the server launched successfully when you get the last two lines from the previous command something like this:
@@ -97,7 +65,7 @@ To create the GenVarDB Variants Database instance (keyspace) and the annotations
 The `create_db.cql` script contains instructions for creating the database, the annotations table with the necessary parameters, and the column indexes to facilitate certain queries. All default options are used except for the compaction strategy (use the Unified Compaction Strategy) and the compression algorithm (use the Zstd compressor). The database server can be terminated by running
 `$ apache-cassandra-5.0.0/bin/nodetool stopdaemon`
 
-# **5. Data Importing** {#data-importing}
+# **5. Data Importing**
 
 The data are prepared and imported after the analysis of a sequenced sample is completed and the plain VCF files are produced. These VCF files serve as the starting point for the annotation and data import processes. The workflow can be launched by running the script `pipeline.sh` (in the scripts directory) with two parameters; the sample VCF file and the output directory. The steps of the workflow are described below.  
 Firstly, the VCF file is converted to another VCF file with the multiallelic variants splitted into separate records by a bcftools norm command and the INFO and FORMAT fields are removed (keeping genotypes only) by bcftools annotate.  
@@ -112,7 +80,7 @@ This outputs 25 files called (${sample}\_${chr}.tsv), each is passed to `generat
 Regarding the data import, columns are imported from the (${sample}\_${chr}.tsv.updated) file with the `dsbulk_annotations.sh` script in a way to handle the data model of each data type in the most efficient way.  
 The final TSVs (${sample}\_${chr}.tsv.updated) are concatenated and piped to `gzip -9` to reduce the file size.
 
-# **6. Modeling and Query Optimization** {#modeling-and-query-optimization}
+# **6. Modeling and Query Optimization**
 
 The rationale behind the chosen data model is to provide a flexible and scalable structure for storing genetic variant data while maintaining data integrity and minimizing redundancy. The current data model used in the created table is as follows:
 
@@ -133,7 +101,7 @@ To allow searching by other columns that are not included in the PK definition, 
 `cqlsh>>> CREATE INDEX col_sai_idx ON keyspace_name.table_name (column_name) USING 'sai';`  
 Currently, there are 5 columns indexed with this strategy (dbsnp, effect, consequence, intervar, and variant_count). It MUST be noted that indexing can add extra overhead, cause performance issues, and lead to inconsistent data if not used properly, especially on highly diverse and frequently updated columns.
 
-# **7. Web App Development** {#web-app-development}
+# **7. Web App Development**
 
 For the ease of access of the data, a simple web application was created using a micro web framework written in Python called Flask that can be initiated by navigating to the directory of the flask project db_app/ and running the python script `app.py`. The structure of the flask project directory is as follows:  
 ```
@@ -156,7 +124,7 @@ db_app		# main Flask application directory
 └── usr_dt.py			# users and their login credentials
 ```
 
-# **8. Data Access** {#data-access}
+# **8. Data Access**
 
 The available user interface to navigate the database can be accessed through the link "http://10.10.100.171:5000" or the IP of remote server. Through this interface, users can perform queries by entering the search keyword in the given textbox, select the columns to display and then press the Search button. The following is a more comprehensive guide on how to utilize the interface.  
 Typically, users can get a single specific variant by specifying the genomic coordinates and the base alterations (such as chr1-11,213,687-A-C). The chromosome and position can be entered without base alterations (chr1:10,747,852) to return all variants found in a single position. In addition, querying genomic regions is also available, in which users can enter the chromosome, start position and end position (chr1:10,000-20,000) to return all variants present within this region. Note that commas are allowed in numbers only (123456 or 123,456). Gene names are also allowed by writing gene={GeneName}, for example gene=BRCA2.   
@@ -178,7 +146,7 @@ Whatever type of query performed, the search results will appear in a new page t
 
 Finally, the search results can be exported to a TSV file for better inspection, visualization and correlation of data with other external data sources and tools. The TSV file can be opened in any spreadsheet software such as Microsoft Excel, Google Sheets and LibreOffice Calc.
 
-# **9. Backup & Recovery** {#backup-&-recovery}
+# **9. Backup & Recovery**
 
 A general backup plan has been proposed to save a second copy of the data on external storages. This can be done in two ways:
 
@@ -198,11 +166,11 @@ $ dsbulk unload -k genvardb -t annotations -delim "\\t" | gzip -9c > ./db-backup
 $ dsbulk load -k genvardb -t annotations -delim "\\t" --connector.csv.compression gzip --connector.csv.maxCharsPerColumn -1 -url ./db-backup-jun24.tsv.gz
 ```
 
-# **10. Security** {#security}
+# **10. Security**
 
 Security measures and access restrictions include creating a specific user ID and password for each researcher to control the access to the data. In addition, all IP addresses that try to access the API are logged and can be checked to see if there are any unknown devices.
 
-# **11. Troubleshooting** {#troubleshooting}
+# **11. Troubleshooting**
 
 Some potential problems users might encounter are addressed in the following table:
 
@@ -214,7 +182,7 @@ Some potential problems users might encounter are addressed in the following tab
 | Inconsistent data (missing data) | Improper data validation. - Too much I/O operations. - Server overload. | Implement data validation rules. - Use database transactions. - Monitor server load. |
 | Backup/Restore Error | Insufficient disk space. - Corrupted backup files. - Permission issues. | \[pre-backup\] Ensure enough disk space. - \[post-backup\] Check backup file integrity. - Verify user permissions. |
 
-# **12. Best Practices** {#best-practices}
+# **12. Best Practices**
 
 To effectively use the database system and perform faster queries, it is highly recommended to use the genomic coordinates in your queries at least by specifying the chromosome and position of the variant instead of searching by gene names or variant identifiers. Further filtrations can be applied in the results page using the column-based filtrations. The following points shows how to perform efficient queries:
 
@@ -222,6 +190,6 @@ To effectively use the database system and perform faster queries, it is highly 
 * If you have a variant ID (from dbSNP for example), you can get the variant coordinates (chr-pos) by looking it up in dbSNP and then query the variant by these coordinates.  
 * Online resources use different positioning systems, especially in representing INDELs. If you can’t find a variant, search before and after the given position by 1 bp (for example, if your variant is at position 105, query the region from 104 to 106).
 
-# **13. Conclusion** {#conclusion}
+# **13. Conclusion**
 
 The proposed database model for storing genetic variants, as detailed in this project, demonstrates the critical role of robust solution to efficiently manage genetic variant data produced in the large-scale genomics projects. The structured storage of these variants facilitates the study and analysis of genetic information, essential for advancing genetic research, disease association studies, and personalized medicine. This database enables researchers and clinicians to store, query, and analyze genetic information effectively, thus enhancing data management, analysis, and clinical interpretations.
