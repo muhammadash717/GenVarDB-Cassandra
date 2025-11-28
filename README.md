@@ -32,8 +32,9 @@ Secondly, you need to download the tarball files and extract them for Cassandra 
 
 1. Apache Cassandra
 ```
-wget https://archive.apache.org/dist/cassandra/5.0.0/apache-cassandra-5.0.0-bin.tar.gz  
-tar -xzf apache-cassandra-5.0.0-bin.tar.gz  
+mkdir -p tarballs
+wget -P tarballs https://archive.apache.org/dist/cassandra/5.0.0/apache-cassandra-5.0.0-bin.tar.gz
+tar -xzf tarballs/apache-cassandra-5.0.0-bin.tar.gz -C .
 ```
 All the database core files, logs, and tables are stored in the downloaded tarball file.
 
