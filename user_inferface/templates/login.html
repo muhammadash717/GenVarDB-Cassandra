@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        h2 {
+            text-align: center;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+        }
+        form {
+            background: #fff;
+            width: 100%;
+            max-width: 450px;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        input[type="submit"] {
+            width: 100%;
+            padding: 0.7rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        .copyright {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #666;
+            }
+        @media (max-width: 600px) {
+            form {
+                padding: 1rem;
+            }
+            input[type="submit"] {
+                padding: 0.6rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <form method="post">
+        <img src="/static/genvardb_logo.png" height="170px" alt="GenVarDB logo">
+        <h2>Login</h2>
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" placeholder="Enter your username ..." autofocus>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" placeholder="Enter your password ...">
+        <input type="submit" value="Login">
+    <div class="copyright">
+        &copy; 2026 GenVarDB-Cassandra. All rights reserved.<br>
+        Developed By: Muhammad Ashraf<br>
+        <a href="https://github.com/muhammadash717/GenVarDB-Cassandra.git" target="_blank">GitHub Repository</a>
+    </div>
+</form>
+    </body>
+</html>

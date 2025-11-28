@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Search Results</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .logo {
+            float: left;
+        }
+        .highlight {
+            background-color: yellow;
+            font-weight: bold;
+        }
+        body {
+            font-family: Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        h1 {
+            text-align: center;
+            margin: 1rem 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-left: 0;
+            margin-bottom: 1rem;
+            display: block;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+        table.center1 {
+            width: 100%;
+            max-height: 1000px;
+            border-collapse: collapse;
+            table-layout: fixed;
+            overflow-x: auto;
+            display: block;
+        }
+        th, td {
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            font-size: 0.9rem;
+            text-align: center;
+            max-width: 500px;
+            overflow-wrap: break-word;
+            max-height: 100px;
+            overflow-y: scroll;
+        }
+        .scrollable-content {
+            max-width: 500px;
+            max-height: 100px;
+            overflow-y: scroll;
+            padding: 0.5rem;
+            box-sizing: border-box;
+        }
+        th {
+            background-color: #007bff;
+            position: sticky;
+            color: white;
+            z-index: 2;
+            top: 0;
+        }
+        hr {
+            display: block;
+            color: white;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+            margin-left: auto;
+            margin-right: auto;
+            border-style: inset;
+            border-width: 1px;
+        }
+        a, button {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: none;
+        }
+        a:hover, button:hover {
+            background-color: #0056b3;
+        }
+        .row-count {
+            color: grey;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-right: 1rem;
+        }
+        .copyright {
+            margin-top: 30px;
+            font-size: 0.8rem;
+            color: #4f4e4e;
+            text-align: center;
+        }
+        input[type="text"] {
+            margin-top: 7px;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 0.2rem;
+        }
+        .column-toggle {
+            margin-bottom: 1rem;
+        }
+        .column_filtering {
+            cursor: pointer;  /* Change cursor to pointer (hand) */
+            text-decoration: underline;
+            margin-right: 20px;
+        }
+    </style>
+    <script>
+        function filterTable(tableId) {
+            const table = document.getElementById(tableId);
+            const inputs = table.querySelectorAll('th input');
+            const rows = table.querySelectorAll('tr:not(:first-child)');
+            const highlightClass = 'highlight';
+            let visibleRowCount = 0;
+
+            rows.forEach(row => {
+                let display = true;
+                inputs.forEach((input, index) => {
+                    const cell = row.querySelector(`td:nth-child(${index + 1})`);
+                    if (cell) {
+                        const txtValue = cell.textContent || cell.innerText;
+                        const filterValue = input.value.toLowerCase().trim();
+
+                        // Clear highlights
+                        cell.innerHTML = cell.innerHTML.replace(new RegExp(`<span class="${highlightClass}">(.*?)<\/span>`, 'gi'), '$1');
+
+                            if (filterValue) {
+                                let include = true;
+        
+                                // Exclusion filter
+                                if (filterValue.startsWith('^')) {
+                                    const excludeValue = filterValue.substring(1).toLowerCase();
+                                    
+                                    // Check if txtValue starts with excludeValue
+                                    if (txtValue.toLowerCase().startsWith(excludeValue)) {
+                                        display = false;
+                                    }
+                                } 
+                                // Numeric comparison filters
+                                else if (/^([<>]=?|<=?)\s*(-?\d+(\.\d+)?)$/.test(filterValue)) {
+                                    const match = filterValue.match(/^([<>]=?|<=?)\s*(-?\d+(\.\d+)?)$/);
+                                    const operator = match[1];
+                                    const number = parseFloat(match[2]);
+                                    const cellNumber = parseFloat(txtValue);
+        
+                                    switch (operator) {
+                                        case '>':
+                                            include = cellNumber > number;
+                                            break;
+                                        case '>=':
+                                            include = cellNumber >= number;
+                                            break;
+                                        case '<':
+                                            include = cellNumber < number;
+                                            break;
+                                        case '<=':
+                                            include = cellNumber <= number;
+                                            break;
+                                    }
+        
+                                    if (!include) {
+                                        display = false;
+                                    }
+                                } 
+                                // Text filtering with AND/OR logic
+                                else {
+                                    const andTerms = filterValue.split('&').map(term => term.trim());
+                                    const orTerms = filterValue.split('|').map(term => term.trim());
+                                    
+                                    if (andTerms.length > 1) {
+                                        include = andTerms.every(term => txtValue.toLowerCase().includes(term));
+                                    } else if (orTerms.length > 1) {
+                                        include = orTerms.some(term => txtValue.toLowerCase().includes(term));
+                                    } else {
+                                        include = txtValue.toLowerCase().includes(filterValue);
+                                    }
+        
+                                    if (!include) {
+                                        display = false;
+                                    } else {
+                                        // Highlight the matching text
+                                        const regex = new RegExp(`(${filterValue.split(/&|\|/).map(term => term.trim()).join('|')})`, 'gi');
+                                        cell.innerHTML = txtValue.replace(regex, `<span class="${highlightClass}">$1</span>`);
+                                    }
+                                }
+                            }
+                        }
+                    });
+        
+                row.style.display = display ? '' : 'none';
+                if (display) visibleRowCount++;
+            });
+
+            const rowCountDisplay = table.parentElement.querySelector('.row-count');
+            if (rowCountDisplay) rowCountDisplay.innerHTML = `Currently, <b>${visibleRowCount}</b> record(s) are shown.`;
+        }
+
+        function downloadVisibleTable(tableId) {
+            const table = document.getElementById(tableId);
+            let tsv = '';
+            const rows = table.querySelectorAll('tr');
+
+            rows.forEach((row, rowIndex) => {
+                if (row.style.display !== 'none') {
+                    const cells = row.querySelectorAll('th, td');
+                    const visibleCells = Array.from(cells)
+                        .filter(cell => cell.style.display !== 'none')
+                        .map(cell => cell.textContent.trim());
+                    
+                    const rowData = visibleCells.join('\t');
+                    if (rowIndex === 0 && cells[0].tagName === 'TH') tsv = rowData + '\n' + tsv;
+                    else tsv += rowData + '\n';
+                }
+            });
+
+            const blob = new Blob([tsv], { type: 'text/tsv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `table_data_${tableId}.tsv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function toggleColumnVisibility(columnIndex, tableId, show = undefined) {
+            const table = document.getElementById(tableId);
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('th, td');
+                if (cells[columnIndex]) {
+                    // Toggle if 'show' is undefined, otherwise set based on 'show'
+                    cells[columnIndex].style.display = show === undefined
+                        ? (cells[columnIndex].style.display === 'none' ? '' : 'none')
+                        : (show ? '' : 'none');
+                }
+            });
+        }
+
+        function toggleSelectAll(source, tableName) {
+            const checkboxes = document.querySelectorAll('.checkbox-item');
+            const showColumns = source.checked; // Determine visibility based on 'Select All' checkbox
+
+            // Set all checkboxes to match 'Select All' and show/hide all columns
+            checkboxes.forEach((checkbox, index) => {
+                checkbox.checked = showColumns; // Select/Deselect all checkboxes
+                toggleColumnVisibility(index, tableName, showColumns); // Show or hide column
+            });
+        }
+
+        
+        function clearTextboxes(tableId) {
+            const table = document.getElementById(tableId);
+            const textboxes = table.querySelectorAll('th input[type="text"]');
+            textboxes.forEach(textbox => textbox.value = '');
+            filterTable(tableId);
+        }
+
+        function applyClinicalFilters(tableId) {
+            const table = document.getElementById(tableId);
+            const effectInput = table.querySelector('th:nth-child(10) input');
+            const consequenceInput = table.querySelector('th:nth-child(12) input');
+            const intervarInput = table.querySelector('th:nth-child(14) input');
+            const clinvarInput = table.querySelector('th:nth-child(17) input');
+            const gnomadInput = table.querySelector('th:nth-child(24) input');
+            const gnomadexomeInput = table.querySelector('th:nth-child(31) input');
+            const onekgInput = table.querySelector('th:nth-child(38) input');
+            const phredInput = table.querySelector('th:nth-child(61) input');
+
+            if (effectInput) effectInput.value = "exonic|splicing";
+            if (consequenceInput) consequenceInput.value = "^synonymous_SNV";
+            if (intervarInput) intervarInput.value = "^benign";
+            if (clinvarInput) clinvarInput.value = "^benign";
+            if (gnomadInput) gnomadInput.value = "<0.01";
+            if (gnomadexomeInput) gnomadexomeInput.value = "<0.01";
+            if (onekgInput) onekgInput.value = "<0.01";
+            if (phredInput) phredInput.value = ">=20";
+            
+            filterTable(tableId);
+        }
+    </script>
+</head>
+<body>
+    <img src="/static/genvardb_logo.png" height="170px" alt="GenVarDB logo" class="logo">
+    <br><br><br><br><br>
+    <hr>
+
+    {% for table, rows in results_data.items() %}
+        <h1>{{ table }}</h1>
+        <div class="column-toggle">
+            <input type="checkbox" id="select-all-{{ table }}" checked onclick="toggleSelectAll(this, 'table_{{ table }}')">
+            <label><b>Select All</b></label>
+            {% for column in rows[0]._fields %}
+                <input class="checkbox-item" type="checkbox" checked onchange="toggleColumnVisibility({{ loop.index0 }}, 'table_{{ table }}')">
+                <label for="col{{ loop.index0 }}">{{ column.replace('_',' ') }}</label>
+            {% endfor %}
+        </div>
+        <button onclick="downloadVisibleTable('table_{{ table }}')">Export Current Table</button>
+        <span class="row-count">Currently, <b>{{ rows|length }}</b> record(s) are shown.</span>
+        <span class="column_filtering" onclick="clearTextboxes('table_{{ table }}')">Clear All Filters</span>
+        <span class="column_filtering" onclick="applyClinicalFilters('table_{{ table }}')"><b>Clinical Filters</b></span><br>
+
+        <table id="table_{{ table }}" class="center1">
+            <tr>
+                {% for column in rows[0]._fields %}
+                    <th>
+                        {{ column.replace('_',' ') }}<br>
+                        <input type="text" onkeyup="filterTable('table_{{ table }}')">
+                    </th>
+                {% endfor %}
+            </tr>
+            {% for row in rows %}
+                <tr>
+                    {% for column in row %}
+                        <td><div class="scrollable-content">{{ column }}</div></td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </table>
+        <hr>
+    {% endfor %}
+
+    <div class="copyright">
+        &copy; 2026 GenVarDB-Cassandra. All rights reserved.<br>
+        Developed By: Muhammad Ashraf<br>
+        <a href="https://github.com/muhammadash717/GenVarDB-Cassandra.git" target="_blank">GitHub Repository</a>
+    </div>
+</body>
+</html>

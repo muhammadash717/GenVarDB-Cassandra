@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Database Search</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        h2 {
+            text-align: center;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+        }
+        form {
+            background: #fff;
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+        }
+        label {
+            display: block;
+            margin: 1rem 0 0.2rem;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        input[type="submit"] {
+            width: 100%;
+            margin: 1.5rem 0;
+            padding: 0.7rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 0rem;
+        }
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        .copyright {
+            margin-top: 0px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #666;
+        }
+        @media (max-width: 600px) {
+            form {
+                padding: 1rem;
+            }
+            input[type="submit"] {
+                padding: 0.6rem;
+                font-size: 0.9rem;
+            }
+        }
+        .instructions {
+            background-color: #f9f9f9;
+            font-size: 0.9rem;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <form method="post" target="_blank">
+        <img src="/static/genvardb_logo.png" height="170px" alt="GenVarDB logo">
+        <h2>Database Search</h2>
+
+        <label for="search_pattern">Query:</label>
+        <input type="text" id="search_pattern" name="search_pattern" autofocus>
+        
+        <label for="tables">Tables to search in:</label>
+        <select name="tables" size=2 id="tables" multiple>
+            {% for table in tables %}
+                <option value="{{ table }}" selected>{{ table.replace('_',' ').title() }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="columns">Columns to display:</label>
+        <select name="columns" size=10 id="columns" multiple>
+            {% for table, cols in columns.items() %}
+                <optgroup label="{{ table.replace('_',' ').title() }}">
+                    {% for col in cols %}
+                        <option value="{{ table }}.{{ col }}" selected>{{ col }}</option>
+                    {% endfor %}
+                </optgroup>
+            {% endfor %}
+        </select>
+        
+        <div class="instructions">
+            <p>Note: To select multiple <strong>Tables/Columns</strong>, Hold the <i>Ctrl</i> key while clicking. (all selected by default)</p>
+        </div>
+
+        <input type="submit" value="Search">
+
+        <hr>
+        <form action="/execute_queries" method="post" target="_blank">
+            <button type="submit">Execute Queries</button>
+        </form>
+    </form>
+</body>
+</html>
