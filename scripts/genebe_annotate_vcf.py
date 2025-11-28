@@ -88,8 +88,10 @@ def vcf2json(vcf_gz_path):
     with gzip.open(vcf_gz_path, 'rt') as f:
         for line in f:
             if not line.startswith('##') and line.startswith('#'):
-                samples = line.split('\t')[9::]
+                samples = line.strip().split('\t')[9::]
+                break
         for line in f:
+            line = line.strip()
             if not line.startswith('#'):
                 chrom, pos, _, ref, alt = line.split('\t')[0:5]
                 genotypes_dict = dict(zip(samples, [i.split(":")[0] for i in line.split('\t')[9::]]))

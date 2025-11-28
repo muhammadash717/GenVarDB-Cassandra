@@ -18,12 +18,12 @@ defaults=(
     ["genebe-path"]='./scripts'
     ["dsbulk-import"]='./scripts/dsbulk_import.sh'
     ["generate-genotypes"]='./scripts/generate_genotypes.py'
-    ["cassandra"]="./apache-cassandra-5.0.0/bin/cassandra"
+    ["cassandra"]="./apache-cassandra-5.0.6/bin/cassandra"
     ["tabix"]='tabix'
     ["bgzip"]='bgzip'
     ["bcftools"]='bcftools'
     ["threads"]=4
-    ["flag-dir"]="./cassandra_db/flags"
+    ["flag-dir"]="./flags"
     ["max-retry"]=3
 )
 
@@ -143,7 +143,6 @@ if [ ! -f "${args[flag-dir]}/${sample_name}_genebe.DONE" ]; then # Check the fla
 
         if [ $? -eq 0 ]; then # In case of success, not needed files removed, flag file created and the while loop exits.
             rm ${output_prefix}_raw.tsv
-            # gzip -f ${output_prefix}_annotation.tsv
             touch "${args[flag-dir]}/${sample_name}_genebe.DONE"
             echo -e "[`date`]\tStep 2: Annotation Completed."
             break
@@ -170,7 +169,11 @@ for chr in $(${args[tabix]} -l ${args[vcf]}); do
             while [ $attempt -le ${args[max-retry]} ]; do # Starting the process for the specified number of attempts.
                 echo -e "[`date`]\tStep 3: Parsing Genotypes for ${chr} (Attempt $attempt)"
                 
-                ( head -1 ${output_prefix}_annotation.tsv | sed -E 's/$/\tvariant_count\tvariant_homozygous\tvariant_heterozygous/1' > ${output_prefix}_${chr}.tsv && grep -P "^${chr//chr/}\s" ${output_prefix}_annotation.tsv | awk 'BEGIN{OFS=FS="\t"} { for(i=1; i<=NF; i++) { if($i == "." || $i == "NA") $i = ""; }} 1' >> ${output_prefix}_${chr}.tsv && python3 ${args[generate-genotypes]} ${output_prefix}_${chr}.tsv && rm -f ${output_prefix}_${chr}.tsv ) 2> ${output_prefix}_parsing.log
+                (   head -1 ${output_prefix}_annotation.tsv | sed -E 's/$/\tvariant_count\tvariant_homozygous\tvariant_heterozygous/1' > ${output_prefix}_${chr}.tsv
+                    grep -P "^${chr//chr/}\s" ${output_prefix}_annotation.tsv | awk 'BEGIN{OFS=FS="\t"} { for(i=1; i<=NF; i++) { if($i == "." || $i == "NA") $i = ""; }} 1' >> ${output_prefix}_${chr}.tsv
+                    python3 ${args[generate-genotypes]} ${output_prefix}_${chr}.tsv
+                    rm -f ${output_prefix}_${chr}.tsv
+                ) 2> ${output_prefix}_parsing.log
 
                 if [ $? -eq 0 ]; then # In case of success, the flag file created and the while loop exits.
                     touch "${args[flag-dir]}/${sample_name}_parsing_${chr}.DONE"

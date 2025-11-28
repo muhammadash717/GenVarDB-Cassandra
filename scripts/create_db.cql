@@ -142,5 +142,5 @@ CREATE INDEX IF NOT EXISTS annot_acmg_sai_idx ON genvardb.annotations (acmg_clas
 CREATE INDEX IF NOT EXISTS annot_variant_count_sai_idx ON genvardb.annotations (variant_count) USING 'sai';
 
 -- To check the progress of index creation...
--- SELECT keyspace_name,table_name,column_name,index_name,is_building,is_queryable FROM system_views.sai_column_indexes ;
+-- SELECT keyspace_name,table_name,column_name,index_name,is_building,is_queryable FROM system_views.sai_column_indexes;
 

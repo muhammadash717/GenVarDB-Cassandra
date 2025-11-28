@@ -1,1 +1,8 @@
-hg38_exome_v2.0.2_with_flanking_10bp.bed
+flags
+logs
+output
+tarballs
+user_inferface
+scripts
+README.md
+LICENSE

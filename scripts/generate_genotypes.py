@@ -67,7 +67,7 @@ with open(logfile_path, 'w') as log_file:   # Creating the log file upon success
     log_file.write(f"{now()}\t[INFO]\tConnected to the Cassandra Cluster.\n")
 
 # Preparing the query statement to check existence of the variants
-query_statement = session.prepare(f"SELECT * FROM {TABLE} WHERE chromosome = ? AND position = ? AND reference = ? AND alternate = ?")
+query_statement = session.prepare(f"SELECT * FROM {TABLE} WHERE chr = ? AND pos = ? AND ref = ? AND alt = ?")
 
 all_count = 0
 novel_count = 0

@@ -92,16 +92,16 @@ conseq_expanded = pd.json_normalize(filtered_merged_data["consequences"]).drop(c
 
 result = pd.concat([filtered_merged_data.reset_index(drop=True), conseq_expanded.reset_index(drop=True)], axis=1)
 
-# Add useful hyperlinks to some columns
-result["OMIM_gene"] = result["OMIM_gene"].astype(str).str.replace(".0", "", regex=False)
-result["gene_hgnc_id"] = result["gene_hgnc_id"].astype(str).str.replace(".0", "", regex=False)
-result["gene_symbol"] = '<a href="https://omim.org/entry/' + result["OMIM_gene"].astype(str) + '" target="_blank">' + result["gene_symbol"].astype(str) + '</a>'
-result["gene_hgnc_id"] = '<a href="https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/' + result["gene_hgnc_id"].astype(str) + '" target="_blank">' + result["gene_hgnc_id"].astype(str) + '</a>'
-result["dbsnp"] = '<a href="https://www.ncbi.nlm.nih.gov/snp/' + result["dbsnp"].astype(str) + '" target="_blank">' + result["dbsnp"].astype(str) + '</a>'
-result["mane_select"] = '<a href="https://www.ncbi.nlm.nih.gov/nuccore/' + result["mane_select"].astype(str) + '" target="_blank">' + result["mane_select"].astype(str) + '</a>'
-result["OMIM_IDs"] = result["OMIM_IDs"].apply(lambda row: '<br>'.join(
-    f'<a href="https://omim.org/entry/{i.replace("OMIM:", "").strip()}" target="_blank">{i.strip()}</a>'
-    for i in str(row).split(';')) if pd.notnull(row) else '')
+# # Add useful hyperlinks to some columns
+# result["OMIM_gene"] = result["OMIM_gene"].astype(str).str.replace(".0", "", regex=False)
+# result["gene_hgnc_id"] = result["gene_hgnc_id"].astype(str).str.replace(".0", "", regex=False)
+# result["gene_symbol"] = '<a href="https://omim.org/entry/' + result["OMIM_gene"].astype(str) + '" target="_blank">' + result["gene_symbol"].astype(str) + '</a>'
+# result["gene_hgnc_id"] = '<a href="https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/' + result["gene_hgnc_id"].astype(str) + '" target="_blank">' + result["gene_hgnc_id"].astype(str) + '</a>'
+# result["dbsnp"] = '<a href="https://www.ncbi.nlm.nih.gov/snp/' + result["dbsnp"].astype(str) + '" target="_blank">' + result["dbsnp"].astype(str) + '</a>'
+# result["mane_select"] = '<a href="https://www.ncbi.nlm.nih.gov/nuccore/' + result["mane_select"].astype(str) + '" target="_blank">' + result["mane_select"].astype(str) + '</a>'
+# result["OMIM_IDs"] = result["OMIM_IDs"].apply(lambda row: '<br>'.join(
+#     f'<a href="https://omim.org/entry/{i.replace("OMIM:", "").strip()}" target="_blank">{i.strip()}</a>'
+#     for i in str(row).split(';')) if pd.notnull(row) else '')
 
 # Keep only the necessary columns
 result = result.loc[:,[
