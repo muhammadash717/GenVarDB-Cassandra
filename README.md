@@ -14,26 +14,33 @@ The database comprises one main table; annotations, that stores all information 
 
 To set up the database, you will need the following software and tools:
 
-- JAVA version 11 (version17 is also supported)  
+- JAVA version 17
 - Python 3  
-- Apache Cassandra (version  5.0.0)
+- DataStax Bulk Loader (DSBulk)
+- Apache Cassandra (version 5.0.6)
 - PIP package manager  
 
 Firstly, Setup up JAVA, PIP and the required python modules (with PIP):  
 ```
 sudo apt update && sudo apt upgrade -y
-sudo apt install openjdk-11-jre-headless python3-pip -y
+sudo apt install openjdk-17-jdk python3-pip -y
 pip3 install cassandra-driver flask
 ```
 
-Secondly, you need to download the tarball files and extract them for Cassandra:
+Secondly, Download the tarball file for Cassandra (this contains all the database core files, logs, and tables):
 
 ```
 mkdir -p tarballs
-wget -P tarballs https://archive.apache.org/dist/cassandra/5.0.0/apache-cassandra-5.0.0-bin.tar.gz
-tar -xzf tarballs/apache-cassandra-5.0.0-bin.tar.gz -C .
+wget -P tarballs https://archive.apache.org/dist/cassandra/5.0.6/apache-cassandra-5.0.6-bin.tar.gz
+tar -xzf tarballs/apache-cassandra-5.0.6-bin.tar.gz -C .
 ```
-All the database core files, logs, and tables are stored in the downloaded tarball file.
+
+Lastly, Install the DataStax Bulk Loader (DSBulk) from GitHub (as recommended by [DataStax here](https://docs.datastax.com/en/dsbulk/overview/install.html)):
+```
+mkdir -p tarballs
+wget -P tarballs https://github.com/datastax/dsbulk/releases/download/1.11.0/dsbulk-1.11.0.tar.gz
+tar -xzf tarballs/dsbulk-1.11.0.tar.gz -C .
+```
 
 # **4. Database Installation & Configs**
 
@@ -45,15 +52,15 @@ INFO [main] 2024-10-26 08:35:09,487 CassandraDaemon.java:450 - Prewarming of aut
 ```
 To further check if everything works fine, open the CQL shell by executing the bin file `cqlsh` (in the bin directory). To exit the CQL shell, simply press `Ctrl+D`.  
 To create the GenVarDB Variants Database instance (keyspace) and the annotations table, simply run the following command.
-`apache-cassandra-5.0.0/bin/cqlsh -f create_db.cql`
+`apache-cassandra-5.0.6/bin/cqlsh -f create_db.cql`
 The `create_db.cql` script contains instructions for creating the database, the annotations table with the necessary parameters, and the column indexes to facilitate certain queries. All default options are used except for the compaction strategy (use the Unified Compaction Strategy) and the compression algorithm (use the Zstd compressor). The database server can be terminated by running
-`apache-cassandra-5.0.0/bin/nodetool stopdaemon`
+`apache-cassandra-5.0.6/bin/nodetool stopdaemon`
 
 # **5. Data Importing**
 
-The data are prepared and imported after the analysis of a sequenced sample is completed and the plain VCF files are produced. These VCF files serve as the starting point for the annotation and data import processes. The workflow can be launched by running the script `pipeline.sh` (in the scripts directory) with two parameters; the sample VCF file and the output directory. The steps of the workflow are described below.  
-Firstly, the VCF file is converted to another VCF file with the multiallelic variants splitted into separate records by a bcftools norm command and the INFO and FORMAT fields are removed (keeping genotypes only) by bcftools annotate. The resulting VCF is annotated using GeneBe API. This step produces the annotated TSV file. Both annotations and genotypes data are parsed from the TSV file into a per-chromosome TSV file for parallel analysis.
+The data are prepared and imported after the analysis of a sequenced sample is completed and the plain VCF files are produced. These VCF files serve as the starting point for the annotation and data import processes. The workflow can be launched by running the script `pipeline.sh` (in the scripts directory) with two parameters; the sample VCF file and the output directory. The steps of the workflow are described below.
 
+Firstly, the VCF file is converted to another VCF file with the multiallelic variants splitted into separate records by a bcftools norm command and the INFO and FORMAT fields are removed (keeping genotypes only) by bcftools annotate. The resulting VCF is annotated using GeneBe API. This step produces the annotated TSV file. Both annotations and genotypes data are parsed from the TSV file into a per-chromosome TSV file for parallel analysis.
 This outputs 25 files called (${sample}\_${chr}.tsv), each is passed to `generate_genotypes.py` script because the samples-related data need to be calculated first since each variant should be checked first using a conventional SELECT statement if it occurred before to increment its count by new total and append the new sample to the pre-existing list of samples or if it is novel to add the first sample. This outputs another 25 files called (${sample}\_${chr}.tsv.updated). To save up space, the original TSV (${sample}\_${chr}.tsv) is removed.  
 Regarding the data import, columns are imported from the (${sample}\_${chr}.tsv.updated) file with the `dsbulk_annotations.sh` script in a way to handle the data model of each data type in the most efficient way.  
 The final TSVs (${sample}\_${chr}.tsv.updated) are concatenated and piped to `gzip -9` to reduce the file size.
