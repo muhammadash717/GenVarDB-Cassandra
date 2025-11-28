@@ -1,8 +1,6 @@
 flags
 logs
 output
-tarballs
-user_inferface
-scripts
-README.md
-LICENSE
+dsbulk-1.11.0
+apache-cassandra-5.0.6
+conf
