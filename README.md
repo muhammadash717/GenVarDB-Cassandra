@@ -23,30 +23,30 @@ To set up the database, you will need the following software and tools:
 
 Firstly, Setup up JAVA, PIP and the required python modules (with PIP):  
 ```
-$ sudo apt update && sudo apt upgrade -y
-$ sudo apt install openjdk-11-jre-headless python3-pip -y
-$ pip3 install cassandra-driver flask
+sudo apt update && sudo apt upgrade -y
+sudo apt install openjdk-11-jre-headless python3-pip -y
+pip3 install cassandra-driver flask
 ```
 
 Secondly, you need to download the tarball files and extract them for Cassandra and ANNOVAR:
 
 1. Apache Cassandra
 ```
-$ wget https://archive.apache.org/dist/cassandra/5.0.0/apache-cassandra-5.0.0-bin.tar.gz  
-$ tar -xzf apache-cassandra-5.0.0-bin.tar.gz  
+wget https://archive.apache.org/dist/cassandra/5.0.0/apache-cassandra-5.0.0-bin.tar.gz  
+tar -xzf apache-cassandra-5.0.0-bin.tar.gz  
 ```
 All the database core files, logs, and tables are stored in the downloaded tarball file.
 
 2. ANNOVAR
 ```
-$ wget http://www.openbioinformatics.org/annovar/download/0wgxR2rIVP/annovar.latest.tar.gz  
-$ tar -xzf annovar.latest.tar.gz
+wget http://www.openbioinformatics.org/annovar/download/0wgxR2rIVP/annovar.latest.tar.gz  
+tar -xzf annovar.latest.tar.gz
 ```
 
 Lastly, Download and Install the necessary database files required to annotate with ANNOVAR.  
 ```
 ### Download necessary database files.
-$ for database in refGeneWithVer,avsnp151,clinvar_20240917,intervar_20180118,gnomad41_genome,gnomad41_exome,dbnsfp47a; do perl annovar/annotate_variation.pl -buildver hg38 -downdb -webfrom annovar ${database} annovar/humandb/; done
+for database in refGeneWithVer,avsnp151,clinvar_20240917,intervar_20180118,gnomad41_genome,gnomad41_exome,dbnsfp47a; do perl annovar/annotate_variation.pl -buildver hg38 -downdb -webfrom annovar ${database} annovar/humandb/; done
 ```
 All databases are downloaded (along with their indexes) using the `annotate_variation.pl` script provided by ANNOVAR. But to speed up the processes downstream, the databases need to be reindexed using another script, `index_annovar.pl`, downloaded from an external github repository ([link](https://gist.github.com/fo40225/f135b50b3e47d0997098264c3d28e590)). The best indexing parameter for all databases is 1000 except for gnomad_genome (500), gnomad_exome (100), and intervar (100). Note that for InterVar, it's better to select the first 6 columns only since they are the only ones required.
 
@@ -61,9 +61,9 @@ INFO [main] 2024-10-26 08:35:09,487 CassandraDaemon.java:450 - Prewarming of aut
 ```
 To further check if everything works fine, open the CQL shell by executing the bin file `cqlsh` (in the bin directory). To exit the CQL shell, simply press `Ctrl+D`.  
 To create the GenVarDB Variants Database instance (keyspace) and the annotations table, simply run the following command.
-`$ apache-cassandra-5.0.0/bin/cqlsh -f create_db.cql`
+`apache-cassandra-5.0.0/bin/cqlsh -f create_db.cql`
 The `create_db.cql` script contains instructions for creating the database, the annotations table with the necessary parameters, and the column indexes to facilitate certain queries. All default options are used except for the compaction strategy (use the Unified Compaction Strategy) and the compression algorithm (use the Zstd compressor). The database server can be terminated by running
-`$ apache-cassandra-5.0.0/bin/nodetool stopdaemon`
+`apache-cassandra-5.0.0/bin/nodetool stopdaemon`
 
 # **5. Data Importing**
 
@@ -152,18 +152,18 @@ A general backup plan has been proposed to save a second copy of the data on ext
 
 1) Copy the whole database folder with all SStables, configs, and bins. (**the database server must be stopped**)
 ```
-$ tar --zstd -cf ${backup_directory}/db-backup-jun24.tar.zst ${database_folder}
+tar --zstd -cf ${backup_directory}/db-backup-jun24.tar.zst ${database_folder}
 
 ### To recover it, run the following command:
-$ tar --zstd -xf ${backup_directory}/db-backup-jun24.tar.zst [ -C /path/to/extract/ ]
+tar --zstd -xf ${backup_directory}/db-backup-jun24.tar.zst [ -C /path/to/extract/ ]
 ```
 
 2) Save the annotation table as TSV. (**the database server must be running**)
 ```
-$ dsbulk unload -k genvardb -t annotations -delim "\t" | gzip -9c > ./db-backup-${date}.tsv.gz
+dsbulk unload -k genvardb -t annotations -delim "\t" | gzip -9c > ./db-backup-${date}.tsv.gz
 
 ### For recovery, import the table with dsbulk load.
-$ dsbulk load -k genvardb -t annotations -delim "\t" --connector.csv.compression gzip --connector.csv.maxCharsPerColumn -1 -url ./db-backup-jun24.tsv.gz
+dsbulk load -k genvardb -t annotations -delim "\t" --connector.csv.compression gzip --connector.csv.maxCharsPerColumn -1 -url ./db-backup-jun24.tsv.gz
 ```
 
 # **10. Security**
