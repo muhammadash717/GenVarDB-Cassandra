@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Description : The script  (1) annotates a VCF file using ANNOVAR
+# Description : The script  (1) annotates a VCF file using GeneBe
 #                           (2) prep for database import
 # Usage       : bash pipeline.sh --vcf <vcf_file> --output-directory <output_path>
 
@@ -15,10 +15,10 @@ required_args=("vcf" "output-directory")
 
 # Optional arguments with default values
 defaults=(
-    ["annovar-path"]='./cassandra_db/annotation/annovar'
-    ["dsbulk-import"]='./cassandra_db/updated_scripts/dsbulk_import.sh'
-    ["generate-genotypes"]='./cassandra_db/updated_scripts/generate_genotypes.py'
-    ["cassandra"]="./cassandra_db/apache-cassandra-5.0.0/bin/cassandra"
+    ["genebe-path"]='./scripts'
+    ["dsbulk-import"]='./scripts/dsbulk_import.sh'
+    ["generate-genotypes"]='./scripts/generate_genotypes.py'
+    ["cassandra"]="./apache-cassandra-5.0.0/bin/cassandra"
     ["tabix"]='tabix'
     ["bgzip"]='bgzip'
     ["bcftools"]='bcftools'
@@ -81,7 +81,7 @@ require_path() {
 }
 
 require_path ${args[vcf]}
-require_path ${args[annovar-path]}
+require_path ${args[genebe-path]}
 require_path ${args[dsbulk-import]}
 require_path ${args[generate-genotypes]}
 require_path ${args[cassandra]}
@@ -131,24 +131,24 @@ fi
 
 
 # Step 2: Annotating the splitted VCF.
-if [ ! -f "${args[flag-dir]}/${sample_name}_annovar.DONE" ]; then # Check the flag file and start the process if not exists.
+if [ ! -f "${args[flag-dir]}/${sample_name}_genebe.DONE" ]; then # Check the flag file and start the process if not exists.
     
     attempt=1
 
     while [ $attempt -le ${args[max-retry]} ]; do # Starting the process for the specified number of attempts.
         
         echo -e "[`date`]\tStep 2: Annotating (Attempt $attempt)"
-        perl ${args[annovar-path]}/table_annovar.pl ${output_prefix}.norm.vcf.gz ${args[annovar-path]}/humandb/ -buildver hg38 -out ${output_prefix} -thread ${args[threads]} -maxgenethread ${args[threads]} -remove -protocol refGeneWithVer,intervar_20180118,ALL.sites.2015_08,dbnsfp47a -operation g,f,f,f -nastring . -polish -vcfinput &> ${output_prefix}_annovar.log
-        
+        python3 ${args[genebe-path]}/genebe_annotate_vcf.py --input_vcf ${output_prefix}.norm.vcf.gz --output_tsv ${output_prefix}_raw.tsv &> ${output_prefix}_genebe.log
+        python3 ${args[genebe-path]}/genebe2html.py ${output_prefix}_raw.tsv &>> ${output_prefix}_genebe.log
+
         if [ $? -eq 0 ]; then # In case of success, not needed files removed, flag file created and the while loop exits.
-            ${args[bgzip]} --threads `nproc` --force ${output_prefix}.hg38_multianno.vcf
-            ${args[tabix]} --force ${output_prefix}.hg38_multianno.vcf.gz
-            rm -f ${output_prefix}.avinput ${output_prefix}.hg38_multianno.txt ${output_prefix}.norm.vcf.gz
-            touch "${args[flag-dir]}/${sample_name}_annovar.DONE"
+            rm ${output_prefix}_raw.tsv
+            # gzip -f ${output_prefix}_annotation.tsv
+            touch "${args[flag-dir]}/${sample_name}_genebe.DONE"
             echo -e "[`date`]\tStep 2: Annotation Completed."
             break
         else    # In case of failure, retry.
-            touch "${args[flag-dir]}/${sample_name}_annovar.FAIL.$attempt"
+            touch "${args[flag-dir]}/${sample_name}_genebe.FAIL.$attempt"
             attempt=$((attempt + 1)); if [ $attempt -gt ${args[max-retry]} ]; then exit 1; fi
             echo -e "[`date`]\tStep 2: Annotation failed. Retrying."
         fi
@@ -159,8 +159,8 @@ else # Skipping the step if the "DONE" flag file was found.
 
 fi
 
-# Step 3: VCF parsing & Generating Genotypes.
-for chr in $(${args[tabix]} -l ${output_prefix}.hg38_multianno.vcf.gz); do
+# Step 3: Parsing Genotypes.
+for chr in $(${args[tabix]} -l ${args[vcf]}); do
 
     if [ ! -f "${args[flag-dir]}/${sample_name}_parsing_${chr}.DONE" ]; then # Check the flag file and start the process if not exists.
     
@@ -168,31 +168,31 @@ for chr in $(${args[tabix]} -l ${output_prefix}.hg38_multianno.vcf.gz); do
             attempt=1
 
             while [ $attempt -le ${args[max-retry]} ]; do # Starting the process for the specified number of attempts.
-                echo -e "[`date`]\tStep 3: VCF parsing & Generating Genotypes for ${chr} (Attempt $attempt)"
+                echo -e "[`date`]\tStep 3: Parsing Genotypes for ${chr} (Attempt $attempt)"
                 
-                ( echo -e "chromosome\tposition\treference\talternate\teffect\tgene\tconsequence\tamino_acid\tintervar\tall_1kg\tsift_pred\trevel_score\tcadd_phred\tprimateai_pred\tclinpred_pred\talphamissense_pred\tdann_score\tvariant_samples\tvariant_count\tvariant_homozygous\tvariant_heterozygous" > ${output_prefix}_${chr}.tsv && ${args[bcftools]} query -r ${chr} -e 'FORMAT/GT == "./." | FORMAT/GT == "." | FORMAT/GT == ".|." | FORMAT/GT == "0/0" | FORMAT/GT == "0" | FORMAT/GT == "0|0"' -f "%CHROM\t%POS\t%REF\t%ALT\t%INFO/Func.refGeneWithVer\t%INFO/Gene.refGeneWithVer\t%INFO/ExonicFunc.refGeneWithVer\t%INFO/AAChange.refGeneWithVer\t%INFO/InterVar_automated\t%INFO/ALL.sites.2015_08\t%INFO/SIFT_pred\t%INFO/REVEL_score\t%INFO/CADD_phred\t%INFO/PrimateAI_pred\t%INFO/ClinPred_pred\t%INFO/AlphaMissense_pred\t%INFO/DANN_score\t{[\"%SAMPLE\":\"%GT\", ]}\n" ${output_prefix}.hg38_multianno.vcf.gz | sed 's/, }/}/g' | sed 's/\\x3b/;/g' | awk 'BEGIN{OFS=FS="\t"} { for(i=1; i<=NF; i++) { if($i == "." || $i == "NA") $i = ""; }} 1' >> ${output_prefix}_${chr}.tsv && python3 ${args[generate-genotypes]} ${output_prefix}_${chr}.tsv && rm -f ${output_prefix}_${chr}.tsv ) 2> ${output_prefix}_parsing.log
+                ( head -1 ${output_prefix}_annotation.tsv | sed -E 's/$/\tvariant_count\tvariant_homozygous\tvariant_heterozygous/1' > ${output_prefix}_${chr}.tsv && grep -P "^${chr//chr/}\s" ${output_prefix}_annotation.tsv | awk 'BEGIN{OFS=FS="\t"} { for(i=1; i<=NF; i++) { if($i == "." || $i == "NA") $i = ""; }} 1' >> ${output_prefix}_${chr}.tsv && python3 ${args[generate-genotypes]} ${output_prefix}_${chr}.tsv && rm -f ${output_prefix}_${chr}.tsv ) 2> ${output_prefix}_parsing.log
 
                 if [ $? -eq 0 ]; then # In case of success, the flag file created and the while loop exits.
                     touch "${args[flag-dir]}/${sample_name}_parsing_${chr}.DONE"
-                    echo -e "[`date`]\tStep 3: VCF parsing & Generating Genotypes for ${chr} Completed."
+                    echo -e "[`date`]\tStep 3: Parsing Genotypes for ${chr} Completed."
                     break
                 else    # In case of failure, retry.
                     touch "${args[flag-dir]}/${sample_name}_parsing_${chr}.FAIL.$attempt"
                     attempt=$((attempt + 1)); if [ $attempt -gt ${args[max-retry]} ]; then exit 1; fi
-                    echo -e "[`date`]\tStep 3: VCF parsing & Generating Genotypes for ${chr} failed. Retrying."
+                    echo -e "[`date`]\tStep 3: Parsing Genotypes for ${chr} failed. Retrying."
                 fi
             done
         ) &
 
     else # Skipping the step if the "DONE" flag file was found.
-        echo -e "[`date`]\tStep 3: VCF parsing & Generating Genotypes for ${chr} already completed. Skipping."
+        echo -e "[`date`]\tStep 3: Parsing Genotypes for ${chr} already completed. Skipping."
 
     fi
 done
 wait
 
 # Step 4: Importing Data into the database. 
-for chr in $(${args[tabix]} -l ${output_prefix}.hg38_multianno.vcf.gz); do
+for chr in $(${args[tabix]} -l ${args[vcf]}); do
 
     if [ ! -f "${args[flag-dir]}/${sample_name}_import_${chr}.DONE" ]; then # Check the flag file and start the process if not exists.
 
