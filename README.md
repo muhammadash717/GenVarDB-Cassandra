@@ -23,8 +23,8 @@ To set up the database, you will need the following software and tools:
 
 Firstly, Setup up JAVA, PIP and the required python modules (with PIP):  
 ```
-$ sudo apt update && sudo apt upgrade \-y
-$ sudo apt install openjdk-11-jre-headless python3-pip \-y
+$ sudo apt update && sudo apt upgrade -y
+$ sudo apt install openjdk-11-jre-headless python3-pip -y
 $ pip3 install cassandra-driver flask
 ```
 
@@ -33,14 +33,14 @@ Secondly, you need to download the tarball files and extract them for Cassandra 
 1. Apache Cassandra
 ```
 $ wget https://archive.apache.org/dist/cassandra/5.0.0/apache-cassandra-5.0.0-bin.tar.gz  
-$ tar \-xzf apache-cassandra-5.0.0-bin.tar.gz  
+$ tar -xzf apache-cassandra-5.0.0-bin.tar.gz  
 ```
 All the database core files, logs, and tables are stored in the downloaded tarball file.
 
 2. ANNOVAR
 ```
 $ wget http://www.openbioinformatics.org/annovar/download/0wgxR2rIVP/annovar.latest.tar.gz  
-$ tar \-xzf annovar.latest.tar.gz
+$ tar -xzf annovar.latest.tar.gz
 ```
 
 Lastly, Download and Install the necessary database files required to annotate with ANNOVAR.  
@@ -56,8 +56,8 @@ All databases are downloaded (along with their indexes) using the `annotate_vari
 To provide a flexible and scalable environment for enhanced data storage and retrieval while maintaining system resources usage, some modifications must be made in the two configuration files; `cassandra.yaml` which is the main configuration file for Cassandra and `cassandra-env.sh` where the JAVA environment variables can be set. The configuration files can be found in the conf directory within the tarball install location. All you need to do is to replace the original conf directory with the modified one in this repository.  
 You can launch the database server by executing the bin file `cassandra` that can be found in the bin directory within the tarball install location. This command operates in the background so you won’t get back the bash terminal prompt unless you press enter. You can know the server launched successfully when you get the last two lines from the previous command something like this:
 ```
-INFO \[main\] 2024-10-26 08:35:09,423 StorageService.java:3220 \- Node localhost/127.0.0.1:7000 state jump to NORMAL  
-INFO \[main\] 2024-10-26 08:35:09,487 CassandraDaemon.java:450 \- Prewarming of auth caches is disabled  
+INFO [main] 2024-10-26 08:35:09,423 StorageService.java:3220 - Node localhost/127.0.0.1:7000 state jump to NORMAL  
+INFO [main] 2024-10-26 08:35:09,487 CassandraDaemon.java:450 - Prewarming of auth caches is disabled  
 ```
 To further check if everything works fine, open the CQL shell by executing the bin file `cqlsh` (in the bin directory). To exit the CQL shell, simply press `Ctrl+D`.  
 To create the GenVarDB Variants Database instance (keyspace) and the annotations table, simply run the following command.
@@ -73,7 +73,7 @@ The resulting VCF is annotated using ANNOVAR software. This step produces three 
 Both annotations and genotypes data are parsed from the VCF file using a bcftools query command into a TSV file per chromosome that passes through some processes which are:
 
 1) remove an additional comma and space in samples dictionary  
-2) replace "\\x3b" with ";" (since semicolons are not allowed within VCF fields)  
+2) replace "\x3b" with ";" (since semicolons are not allowed within VCF fields)  
 3) replace NA and "." with empty strings for the database numerical columns.
 
 This outputs 25 files called (${sample}\_${chr}.tsv), each is passed to `generate_genotypes.py` script because the samples-related data need to be calculated first since each variant should be checked first using a conventional SELECT statement if it occurred before to increment its count by new total and append the new sample to the pre-existing list of samples or if it is novel to add the first sample. This outputs another 25 files called (${sample}\_${chr}.tsv.updated). To save up space, the original TSV (${sample}\_${chr}.tsv) is removed.  
@@ -152,18 +152,18 @@ A general backup plan has been proposed to save a second copy of the data on ext
 
 1) Copy the whole database folder with all SStables, configs, and bins. (**the database server must be stopped**)
 ```
-$ tar --zstd -cf ${backup\_directory}/db-backup-jun24.tar.zst ${database\_folder}
+$ tar --zstd -cf ${backup_directory}/db-backup-jun24.tar.zst ${database_folder}
 
 ### To recover it, run the following command:
-$ tar --zstd -xf ${backup\_directory}/db-backup-jun24.tar.zst [ -C /path/to/extract/ ]
+$ tar --zstd -xf ${backup_directory}/db-backup-jun24.tar.zst [ -C /path/to/extract/ ]
 ```
 
 2) Save the annotation table as TSV. (**the database server must be running**)
 ```
-$ dsbulk unload -k genvardb -t annotations -delim "\\t" | gzip -9c > ./db-backup-${date}.tsv.gz
+$ dsbulk unload -k genvardb -t annotations -delim "\t" | gzip -9c > ./db-backup-${date}.tsv.gz
 
 ### For recovery, import the table with dsbulk load.
-$ dsbulk load -k genvardb -t annotations -delim "\\t" --connector.csv.compression gzip --connector.csv.maxCharsPerColumn -1 -url ./db-backup-jun24.tsv.gz
+$ dsbulk load -k genvardb -t annotations -delim "\t" --connector.csv.compression gzip --connector.csv.maxCharsPerColumn -1 -url ./db-backup-jun24.tsv.gz
 ```
 
 # **10. Security**
