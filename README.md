@@ -8,7 +8,7 @@ This guide is intended to walk you through the complete process of setting up, m
 
 # **2. Schema Design**
 
-The database comprises one main table; annotations, that stores all information about genetic variants. The genetic variants are defined by their genomic location (chromosome and position), reference and alternative alleles. The chromosome is the main partition column based on which the data is partitioned (divided) in separate groups to facilitate table query and data retrieval. Since the chromosome must be specified in every query, all other chromosomes are discarded while searching, enormously accelerating the query process. Within each partition, the data are clustered (sorted) in ascending order based on the value in the position column, followed by the reference allele, and then the alternate. The presence of variants in individual samples are represented in 4 columns showing the variant count in all samples, number of homozygous/heterozygous occurrences of the variant, and the samples containing the variant as well as the corresponding genotype. Gene-based data (from RefSeq) are shown in 5 columns for the variant unique identifier, gene name, variant effect (downstream, exonic, intergenic, intronic, ncRNA, splicing, upstream, UTR3, UTR5), consequence for exonic variants (frameshift\_deletion, frameshift\_insertion, nonframeshift\_deletion, nonframeshift\_insertion, nonsynonymous\_SNV, startloss, stopgain, stoploss, synonymous\_SNV), and amino acids change. Clinical annotations are shown in 4 columns for the diseases involving the variant (germline, oncogenic, somatic), variant hits in clinical databases (such as OMIM, MedGen, Orphanet, …), variant significance on ClinVar, and InterVar prediction based on the ACMG guidelines (Benign, Likely\_benign, Likely\_pathogenic, Pathogenic, Uncertain\_significance). Variant frequencies from various databases are also available in multiple columns. Population frequency databases are gnomAD genome (7 columns), gnomAD exome (7 columns), 1000 genomes (6 columns), and the Great Middle East (1 column). In addition, a number of computational tools for variant interpretation, pathogenicity prediction, and conservation are also included in multiple columns. Some of these tools are SIFT, PolyPhen, GERP, and CADD.  
+The database comprises one main table; annotations, that stores all information about genetic variants. The genetic variants are defined by their genomic location (chromosome and position), reference and alternative alleles. The chromosome is the main partition column based on which the data is partitioned (divided) in separate groups to facilitate table query and data retrieval. Since the chromosome must be specified in every query, all other chromosomes are discarded while searching, enormously accelerating the query process. Within each partition, the data are clustered (sorted) in ascending order based on the value in the position column, followed by the reference allele, and then the alternate. The presence of variants in individual samples are represented in 4 columns showing the variant count in all samples, number of homozygous/heterozygous occurrences of the variant, and the samples containing the variant as well as the corresponding genotype. Multiple other columns contain gene data (gene name, variant effect and consequence for exonic variants, amino acids change, ...), clinical annotations (the diseases involving the gene, variant hits in clinical databases, variant significance), the ACMG classification. Variant frequencies from gnomAD are shown in two columns (genome and exome). In addition, a number of computational tools for variant interpretation, pathogenicity prediction, and conservation are also included in multiple columns. Some of these tools are REVEL, AlphaMissense, phyloP100way, and SpliceAI.  
 
 # **3. Software & Tools**
 
@@ -17,9 +17,7 @@ To set up the database, you will need the following software and tools:
 - JAVA version 11 (version17 is also supported)  
 - Python 3  
 - Apache Cassandra (version  5.0.0)
-- Perl  
 - PIP package manager  
-- ANNOVAR
 
 Firstly, Setup up JAVA, PIP and the required python modules (with PIP):  
 ```
@@ -28,29 +26,14 @@ sudo apt install openjdk-11-jre-headless python3-pip -y
 pip3 install cassandra-driver flask
 ```
 
-Secondly, you need to download the tarball files and extract them for Cassandra and ANNOVAR:
+Secondly, you need to download the tarball files and extract them for Cassandra:
 
-1. Apache Cassandra
 ```
 mkdir -p tarballs
 wget -P tarballs https://archive.apache.org/dist/cassandra/5.0.0/apache-cassandra-5.0.0-bin.tar.gz
 tar -xzf tarballs/apache-cassandra-5.0.0-bin.tar.gz -C .
 ```
 All the database core files, logs, and tables are stored in the downloaded tarball file.
-
-2. ANNOVAR
-```
-wget http://www.openbioinformatics.org/annovar/download/0wgxR2rIVP/annovar.latest.tar.gz  
-tar -xzf annovar.latest.tar.gz
-```
-
-Lastly, Download and Install the necessary database files required to annotate with ANNOVAR.  
-```
-### Download necessary database files.
-for database in refGeneWithVer,avsnp151,clinvar_20240917,intervar_20180118,gnomad41_genome,gnomad41_exome,dbnsfp47a; do perl annovar/annotate_variation.pl -buildver hg38 -downdb -webfrom annovar ${database} annovar/humandb/; done
-```
-All databases are downloaded (along with their indexes) using the `annotate_variation.pl` script provided by ANNOVAR. But to speed up the processes downstream, the databases need to be reindexed using another script, `index_annovar.pl`, downloaded from an external github repository ([link](https://gist.github.com/fo40225/f135b50b3e47d0997098264c3d28e590)). The best indexing parameter for all databases is 1000 except for gnomad_genome (500), gnomad_exome (100), and intervar (100). Note that for InterVar, it's better to select the first 6 columns only since they are the only ones required.
-
 
 # **4. Database Installation & Configs**
 
@@ -69,13 +52,7 @@ The `create_db.cql` script contains instructions for creating the database, the 
 # **5. Data Importing**
 
 The data are prepared and imported after the analysis of a sequenced sample is completed and the plain VCF files are produced. These VCF files serve as the starting point for the annotation and data import processes. The workflow can be launched by running the script `pipeline.sh` (in the scripts directory) with two parameters; the sample VCF file and the output directory. The steps of the workflow are described below.  
-Firstly, the VCF file is converted to another VCF file with the multiallelic variants splitted into separate records by a bcftools norm command and the INFO and FORMAT fields are removed (keeping genotypes only) by bcftools annotate.  
-The resulting VCF is annotated using ANNOVAR software. This step produces three output files; avinput file, a tsv file with the annotations, and an annotated VCF file. The first two are not needed and, thus, removed along with the VCF file produced from the first step. The annotated VCF file is compressed and indexed with bgzip and tabix tools for downstream analysis.  
-Both annotations and genotypes data are parsed from the VCF file using a bcftools query command into a TSV file per chromosome that passes through some processes which are:
-
-1) remove an additional comma and space in samples dictionary  
-2) replace "\x3b" with ";" (since semicolons are not allowed within VCF fields)  
-3) replace NA and "." with empty strings for the database numerical columns.
+Firstly, the VCF file is converted to another VCF file with the multiallelic variants splitted into separate records by a bcftools norm command and the INFO and FORMAT fields are removed (keeping genotypes only) by bcftools annotate. The resulting VCF is annotated using GeneBe API. This step produces the annotated TSV file. Both annotations and genotypes data are parsed from the TSV file into a per-chromosome TSV file for parallel analysis.
 
 This outputs 25 files called (${sample}\_${chr}.tsv), each is passed to `generate_genotypes.py` script because the samples-related data need to be calculated first since each variant should be checked first using a conventional SELECT statement if it occurred before to increment its count by new total and append the new sample to the pre-existing list of samples or if it is novel to add the first sample. This outputs another 25 files called (${sample}\_${chr}.tsv.updated). To save up space, the original TSV (${sample}\_${chr}.tsv) is removed.  
 Regarding the data import, columns are imported from the (${sample}\_${chr}.tsv.updated) file with the `dsbulk_annotations.sh` script in a way to handle the data model of each data type in the most efficient way.  
@@ -92,15 +69,15 @@ The rationale behind the chosen data model is to provide a flexible and scalable
    4) alternate: for the alternate base in the VCF file. (clustering column 3\)  
 2) Variant data in samples is represented in 3 *integer* columns (variant\_count, variant\_homozygous, variant\_heterozygous).  
 3) Sample IDs and genotypes are represented in the *text* column (variant\_samples) but parsed as a python3 dictionary while importing a new sample.  
-4) Gene-based data are stored in *text* based columns for gene name, variant effect (exonic, intronic, …), consequence (synonyms, stopgain, …), and so on.  
-5) Population frequency columns  (gnomAD, 1kGP, and GME) have the *text (can be double)* data type.  
+4) Gene-based data are stored in *text* based columns.  
+5) Population frequency columns have the *text (can be double)* data type.  
 6) Clinical-related annotations are represented in *text* columns.  
 7) Computational tools for variant interpretations are shown in multiple columns of various types according to the output type of each tool (e.g, SIFT, PolyPhen, CADD, …).
 
 The schema of the database allows searching tables by their PRIMARY KEYS only since their definitions show how the data is partitioned and clustered among nodes. The PK columns are the chromosome, position, reference, and alternate, to allow searching by a certain variant and also by a genomic region to return all variants present in this region.  
 To allow searching by other columns that are not included in the PK definition, an SAI index can be created for this certain column using a CQL command:  
 `cqlsh>>> CREATE INDEX col_sai_idx ON keyspace_name.table_name (column_name) USING 'sai';`  
-Currently, there are 5 columns indexed with this strategy (dbsnp, effect, consequence, intervar, and variant_count). It MUST be noted that indexing can add extra overhead, cause performance issues, and lead to inconsistent data if not used properly, especially on highly diverse and frequently updated columns.
+Currently, there are 5 columns indexed with this strategy (dbsnp, effect, acmg_classification, and variant_count). It MUST be noted that indexing can add extra overhead, cause performance issues, and lead to inconsistent data if not used properly, especially on highly diverse and frequently updated columns.
 
 # **7. Web App Development**
 
