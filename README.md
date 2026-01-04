@@ -47,8 +47,8 @@ tar -xzf tarballs/dsbulk-1.11.0.tar.gz -C .
 To provide a flexible and scalable environment for enhanced data storage and retrieval while maintaining system resources usage, some modifications must be made in the two configuration files; `cassandra.yaml` which is the main configuration file for Cassandra and `cassandra-env.sh` where the JAVA environment variables can be set. The configuration files can be found in the conf directory within the tarball install location. All you need to do is to replace the original conf directory with the modified one in this repository.  
 You can launch the database server by executing the bin file `cassandra` that can be found in the bin directory within the tarball install location. This command operates in the background so you won’t get back the bash terminal prompt unless you press enter. You can know the server launched successfully when you get the last two lines from the previous command something like this:
 ```
-INFO [main] 2024-10-26 08:35:09,423 StorageService.java:3220 - Node localhost/127.0.0.1:7000 state jump to NORMAL  
-INFO [main] 2024-10-26 08:35:09,487 CassandraDaemon.java:450 - Prewarming of auth caches is disabled  
+INFO [main] 2025-12-31 04:20:01,200 StorageService.java:3220 - Node localhost/127.0.0.1:7000 state jump to NORMAL  
+INFO [main] 2025-12-31 04:20:01,264 CassandraDaemon.java:450 - Prewarming of auth caches is disabled  
 ```
 To further check if everything works fine, open the CQL shell by executing the bin file `cqlsh` (in the bin directory). To exit the CQL shell, simply press `Ctrl+D`.  
 To create the GenVarDB Variants Database instance (keyspace) and the annotations table, simply run the following command.
@@ -90,15 +90,12 @@ Currently, there are 5 columns indexed with this strategy (dbsnp, effect, acmg_c
 
 For the ease of access of the data, a simple web application was created using a micro web framework written in Python called Flask that can be initiated by navigating to the directory of the flask project db_app/ and running the python script `app.py`. The structure of the flask project directory is as follows:  
 ```
-db_app		# main Flask application directory  
+user_inferface		# main Flask application directory  
 ├── app.py	# Flask application core script  
 ├── genes.py	# human gene names and coordinates  
 ├── static	# logos used in the web pages  
-│   ├── *****.png  
-│   ├── *****.png  
-│   ├── *****.png  
-│   ├── *****.png  
-│   └── *****.png
+│   ├── genvardb_logo.png  
+│   └── genvardb_logo_wide.png
 ├── templates		# html pages (with their built-in javascripts and css styles)  
 │   ├── invalid_credentials.html	# in case of entering invalid username/password  
 │   ├── login.html		# login webpage  
@@ -111,7 +108,7 @@ db_app		# main Flask application directory
 
 # **8. Data Access**
 
-The available user interface to navigate the database can be accessed through the link "http://10.10.100.171:5000" or the IP of remote server. Through this interface, users can perform queries by entering the search keyword in the given textbox, select the columns to display and then press the Search button. The following is a more comprehensive guide on how to utilize the interface.  
+The available user interface to navigate the database can be accessed through the provided link in flask. Through this interface, users can perform queries by entering the search keyword in the given textbox, select the columns to display and then press the Search button. The following is a more comprehensive guide on how to utilize the interface.  
 Typically, users can get a single specific variant by specifying the genomic coordinates and the base alterations (such as chr1-11,213,687-A-C). The chromosome and position can be entered without base alterations (chr1:10,747,852) to return all variants found in a single position. In addition, querying genomic regions is also available, in which users can enter the chromosome, start position and end position (chr1:10,000-20,000) to return all variants present within this region. Note that commas are allowed in numbers only (123456 or 123,456). Gene names are also allowed by writing gene={GeneName}, for example gene=BRCA2.   
 For queries that don’t involve the PK columns, users can write the column name followed by an equal sign and then the search term (Case Sensitive), for example consequence=stopgain or effect=splicing. Users can also combine more than one column by using the ‘&&’ symbols. For example, if you want to get all known pathogenic variants in the BRCA2 gene, you can enter gene=BRCA2 && intervar=Pathogenic in the search box. Please note that when users perform a query that doesn’t involve the PK columns, the server automatically searches for each partition (chromosome) separately and then aggregates the results which takes more time and utilizes more resources. 
 
