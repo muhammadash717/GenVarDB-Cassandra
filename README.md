@@ -14,8 +14,8 @@ The database comprises one main table; annotations, that stores all information 
 
 To set up the database, you will need the following software and tools:
 
-- JAVA version 17
-- Python 3  
+- JAVA version 11
+- Python 3.11
 - DataStax Bulk Loader (DSBulk)
 - Apache Cassandra (version 5.0.6)
 - PIP package manager  
@@ -23,8 +23,8 @@ To set up the database, you will need the following software and tools:
 Firstly, Setup up JAVA, PIP and the required python modules (with PIP):  
 ```
 sudo apt update && sudo apt upgrade -y
-sudo apt install openjdk-17-jdk python3-pip -y
-pip3 install cassandra-driver flask
+sudo apt install openjdk-17-jdk python3-pip libffi-dev -y
+pip3 install cassandra-driver flask pandas requests
 ```
 
 Secondly, Download the tarball file for Cassandra (this contains all the database core files, logs, and tables):
@@ -88,7 +88,7 @@ Currently, there are 5 columns indexed with this strategy (dbsnp, effect, acmg_c
 
 # **7. Web App Development**
 
-For the ease of access of the data, a simple web application was created using a micro web framework written in Python called Flask that can be initiated by navigating to the directory of the flask project db_app/ and running the python script `app.py`. The structure of the flask project directory is as follows:  
+For the ease of access of the data, a simple web application was created using a micro web framework written in Python called Flask that can be initiated by navigating to the directory of the flask project user_interface/ and running the python script `app.py`. The structure of the flask project directory is as follows:  
 ```
 user_inferface		# main Flask application directory  
 ├── app.py	# Flask application core script  

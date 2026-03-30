@@ -12,10 +12,12 @@ def get_zygosity(genotype):
     return "heterozygous"
 
 # Function to extract the mane select transcript
-def keep_mane_select(dict_list):
+def keep_mane_select(dict_list, selected_transcript):
     if isinstance(dict_list, list):
         for d in dict_list:
             if "mane_select" in d and str(d["mane_select"])[0:3] == "NM_":
+                return d
+            if str(d["transcript"]) == selected_transcript:
                 return d
         return None
     elif isinstance(dict_list, dict):
@@ -84,13 +86,14 @@ else:
 # merged_data.to_csv(tsv_output, sep='\t', index=False)
 
 # Expand the consequences dictionary
-filtered_merged_data = merged_data.copy()
-filtered_merged_data["consequences"] = filtered_merged_data["consequences"].apply(ast.literal_eval)
-filtered_merged_data["consequences"] = filtered_merged_data["consequences"].apply(keep_mane_select)
-assert filtered_merged_data["consequences"].apply(lambda x: isinstance(x, dict) or pd.isna(x)).all()
-conseq_expanded = pd.json_normalize(filtered_merged_data["consequences"]).drop(columns=["consequences", "gene_hgnc_id", "gene_symbol", "transcript"], errors='ignore')
+# merged_data.loc[:, 'genebe_transcript'] = merged_data['transcript']
+merged_data = merged_data.copy()
+merged_data["consequences"] = merged_data["consequences"].apply(ast.literal_eval)
+merged_data["consequences"] = merged_data.apply(lambda row: keep_mane_select(row["consequences"], row["transcript"]), axis=1)
+assert merged_data["consequences"].apply(lambda x: isinstance(x, dict) or pd.isna(x)).all()
+conseq_expanded = pd.json_normalize(merged_data["consequences"]).drop(columns=["consequences", "gene_hgnc_id", "gene_symbol"], errors='ignore')
 
-result = pd.concat([filtered_merged_data.reset_index(drop=True), conseq_expanded.reset_index(drop=True)], axis=1)
+result = pd.concat([merged_data.reset_index(drop=True), conseq_expanded.reset_index(drop=True)], axis=1)
 
 # # Add useful hyperlinks to some columns
 # result["OMIM_gene"] = result["OMIM_gene"].astype(str).str.replace(".0", "", regex=False)
