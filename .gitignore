@@ -6,3 +6,4 @@ apache-cassandra-5.0.6
 conf
 tarballs
 venv
+user_inferface/__pycache__
